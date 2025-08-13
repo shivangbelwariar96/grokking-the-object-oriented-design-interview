@@ -235,4 +235,342 @@ The design is enhanced by introducing a **`VotingService`** to handle the comple
 
 ## 14. Library Management System 📚
 
-The design is improved by separating search functionality into a dedicated **`SearchService`**
+The design is improved by separating search functionality into a dedicated **`SearchService`** that uses the Strategy Pattern (`ISearchStrategy`). This makes the system more modular and allows for new search types (e.g., by genre, publication year) to be added easily.
+
+| Class/Enum/Interface | Key Attributes (Variables) | Key Methods (Functions) & Concepts |
+|:---|:---|:---|
+| **`Library`** | `private final Catalog catalog;`<br>`private final MemberService memberService;`<br>`private final LoanService loanService;` | `public List<BookItem> search(...);`<br>`public boolean checkoutBook(...);` **(Facade:** Simplifies common library operations.) |
+| **`Catalog`** | `private final Map<String, Book> booksByIsbn;`<br>`private final SearchService searchService;` | `public Book getBook(String isbn);` |
+| **`SearchService`** | | `public List<Book> search(ISearchStrategy strategy, String query);` **(Strategy Pattern** lets us easily add new search types.) |
+| **`ISearchStrategy`** (Interface) | | `List<Book> search(String query, Catalog catalog);` |
+| **`SearchByTitle`, `SearchByAuthor`** | | (Concrete search algorithms.) |
+| **`Book`** (Subject) | `private final String ISBN;`<br>`private final String title;`<br>`private final List<Member> reservationWaitlist;` | `public void addToWaitlist(Member m);`<br>`public void notifyNextMember();` **(Observer Pattern** for reservations) |
+| **`BookItem`** (extends Book) | `private final String barcode;`<br>`private BookStatus status;` | `public boolean checkout(Member member);` (A specific physical copy.) |
+| **`Member`** (Observer) | `private final String memberId;`<br>`private final List<BookItem> booksLoaned;` | `public void onBookAvailable(Book book);` (Observer's update method, called when a reserved book is available.) |
+| **`BookStatus`** (Enum) | `AVAILABLE, LOANED, RESERVED, LOST` | (Manages the state of a physical book copy.) |
+
+---
+
+## 15. Vending Machine 🍬
+
+This is a canonical example of the State Pattern. The refinement here is to introduce a **`Coin`** enum with values and a dedicated **`CashBox`** for managing money, improving type safety and separating money handling from the main machine logic.
+
+| Class/Enum/Interface | Key Attributes (Variables) | Key Methods (Functions) & Concepts |
+|:---|:---|:---|
+| **`VendingMachine`** | `private State currentState;`<br>`private Inventory inventory;`<br>`private CashBox cashBox;`<br>`private Item selectedItem;` | `public void insertCoin(Coin c);`<br>`public void selectItem(int code);`<br>`public void dispenseItem();`<br>`public void setState(State newState);` **(Context** for State Pattern) |
+| **`State`** (Interface) | | `void insertCoin(VendingMachine m, Coin c);`<br>`void selectItem(VendingMachine m, int code);`<br>`void dispenseItem(VendingMachine m);` **(State Pattern)** |
+| **`NoCoinState`, `HasCoinState`, `SoldState`, `SoldOutState`** | | (Concrete states handle actions. `NoCoinState` accepts coins. `HasCoinState` accepts item selection. `SoldState` dispenses and transitions.) |
+| **`Inventory`** | `private final Map<Integer, ItemSlot> slots;` | `public Item getItem(int itemCode);`<br>`public int getQuantity(int itemCode);`<br>`public synchronized void dispenseItem(int itemCode);` |
+| **`ItemSlot`** | `private final Item item;`<br>`private int count;` | `public synchronized void decrementCount();` (Must be synchronized.) |
+| **`CashBox`** | `private BigDecimal currentBalance;`<br>`private BigDecimal totalCash;` | `public void addCoin(Coin c);`<br>`public BigDecimal getCurrentBalance();`<br>`public void clearBalance();`<br>`public BigDecimal returnChange();` |
+| **`Item`** | `private final String name;`<br>`private final BigDecimal price;` | (**Immutable DTO** for item details.) |
+| **`Coin`** (Enum) | `NICKEL(0.05), DIME(0.10), QUARTER(0.25), DOLLAR(1.00);`<br>`private final BigDecimal value;` | (**Type-safe representation of coins** with their values.) |
+
+---
+
+## 16. Blackjack and Deck of Cards 🃏
+
+This classic OOP problem is enhanced by making the Dealer's play logic an explicit **Strategy (`IDealerPlayStrategy`)**, allowing for different house rules (e.g., "hit on soft 17") without changing the `Dealer` class itself.
+
+| Class/Enum/Interface | Key Attributes (Variables) | Key Methods (Functions) & Concepts |
+|:---|:---|:---|
+| **`BlackjackGame`** | `private final Deck deck;`<br>`private final Dealer dealer;`<br>`private final List<Player> players;`<br>`private GameState gameState;` | `public void startGame();`<br>`public void playRound();`<br>`private void determineWinners();` (Orchestrates the game flow.) |
+| **`Card`** | `private final Suit suit;`<br>`private final Rank rank;` | `public int getValue();` (**Immutable**: A card's value and suit never change.) |
+| **`Deck`** | `private final Deque<Card> cards;` | `public void shuffle();`<br>`public synchronized Card deal();` **(Using `ConcurrentLinkedDeque`** is ideal for a multi-threaded game.) |
+| **`Hand`** | `private final List<Card> cards;` | `public void addCard(Card card);`<br>`public int calculateValue();` (Handles Aces being 1 or 11.)<br>`public boolean isBusted();` |
+| **`Participant`** (Abstract) | `protected final Hand hand;` | `public void hit(Deck deck);`<br>`public void stand();` |
+| **`Player`** (extends Participant) | `private final String name;`<br>`private BigDecimal balance;` | `public void placeBet(BigDecimal amount);` |
+| **`Dealer`** (extends Participant) | `private final IDealerPlayStrategy playStrategy;` | `public void play(Deck deck);` (Delegates decision-making to its strategy.) |
+| **`IDealerPlayStrategy`** (Interface) | | `boolean shouldHit(Hand hand);` **(Strategy Pattern:** Implements house rules, e.g., `HitOnSoft17Strategy`, `StandOn17Strategy`.) |
+| **`Suit`** (Enum) | `HEARTS, DIAMONDS, CLUBS, SPADES` | (Type-safe suits.) |
+| **`Rank`** (Enum) | `TWO(2), ..., JACK(10), ..., ACE(11)`<br>`private final int value;` | (Type-safe ranks and their base values.) |
+
+---
+
+## 17. Food Delivery System (DoorDash) 🍔
+
+This system is heavily driven by the Observer pattern. The design is refined to use a **`OrderDispatchSystem` (Mediator)** to decouple restaurants and drivers, preventing them from needing direct knowledge of each other and centralizing the complex assignment logic.
+
+| Class/Enum/Interface | Key Attributes (Variables) | Key Methods (Functions) & Concepts |
+|:---|:---|:---|
+| **`OrderService`** | `private final OrderDispatchSystem dispatchSystem;`<br>`private final PaymentService paymentService;` | `public Order placeOrder(...);` **(Facade** for the entire ordering process.) |
+| **`Order`** (Subject) | `private OrderStatus status;`<br>`private final List<IOrderObserver> observers;` | `public void setStatus(OrderStatus newStatus);` (Notifies all observers)<br>`public void addObserver(IOrderObserver o);`<br>`public void removeObserver(IOrderObserver o);` |
+| **`IOrderObserver`** (Interface) | | `void update(Order order);` **(Observer Pattern:** Decouples the order from entities that care about its status.) |
+| **`Customer`, `Restaurant`, `Driver`** | | `@Override public void update(Order order);` (Each party reacts differently. Restaurant starts cooking, Driver starts moving, etc.) |
+| **`OrderDispatchSystem`** (Mediator) | `private final LocationService locationService;` | `public void assignDriverToOrder(Order order);` **(Finds the best driver for an order** without the restaurant needing to know about drivers.) |
+| **`LocationService`** | `private final Map<String, Location> driverLocations;`<br>`private final Map<String, Location> restaurantLocations;` | `Driver findBestDriverFor(Restaurant r);` |
+| **`OrderStatus`** (Enum) | `PLACED, CONFIRMED, PREPARING, READY_FOR_PICKUP, PICKED_UP, DELIVERED, CANCELLED` | (A more detailed lifecycle for a food delivery order.) |
+
+---
+
+## 18. Online Auction System ⚖️
+
+This design combines the State and Observer patterns. It's improved by adding a **`Bid`** class to represent the action as an immutable DTO and making the `placeBid` method on `Auction` **`synchronized`**, which is critical to prevent race conditions from multiple bidders.
+
+| Class/Enum/Interface | Key Attributes (Variables) | Key Methods (Functions) & Concepts |
+|:---|:---|:---|
+| **`AuctionService`** | `private final Map<String, Auction> auctions;` | `public Auction createAuction(...);`<br>`public boolean placeBid(String auctionId, ...);` **(Facade** for auction management.) |
+| **`Auction`** (Subject) | `private Bid highestBid;`<br>`private AuctionState state;`<br>`private final transient List<IBidder> bidders;` | `public synchronized boolean placeBid(Bid bid);` **(Thread-safe** to prevent race conditions. Delegates validation to the current state object.)<br>`public void addBidder(IBidder bidder);`<br>`public void setState(AuctionState s);` **(Context** for State) |
+| **`IBidder`** (Observer) | | `void onNewHighBid(Auction auction, Bid newHighestBid);` **(Observer Pattern)** |
+| **`User`** (implements IBidder) | `private final String userId;` | `@Override public void onNewHighBid(...);` (A concrete bidder who gets notified.) |
+| **`AuctionState`** (Interface) | | `boolean placeBid(Auction a, Bid bid);`<br>`void endAuction(Auction a);` **(State Pattern:** Controls what can happen during each auction phase.) |
+| **`PendingState`, `ActiveState`, `ClosedState`** | | (Concrete states. Bids are only accepted in `ActiveState`. `PendingState` might transition to `ActiveState` at a scheduled time.) |
+| **`Bid`** | `private final BigDecimal amount;`<br>`private final IBidder bidder;`<br>`private final Instant timestamp;` | (**Immutable DTO** representing a single bid action.) |
+| **`AuctionStatus`** (Enum) | `PENDING, ACTIVE, CLOSED, CANCELLED` | (Managed by the State pattern.) |
+
+---
+
+## 19. Hotel Management System 🏨
+
+The design is enhanced by separating concerns: a **`RoomInventory`** manages room status, and a **`BookingService`** handles the logic of reservations. This applies SRP more strictly and makes the inventory management explicitly thread-safe.
+
+| Class/Enum/Interface | Key Attributes (Variables) | Key Methods (Functions) & Concepts |
+|:---|:---|:---|
+| **`Hotel`** | `private final RoomInventory inventory;`<br>`private final BookingService bookingService;`<br>`private final SearchService searchService;` | `public List<Room> searchRooms(...);`<br>`public Booking makeBooking(...);` **(Facade:** A simplified entry point for hotel operations.) |
+| **`RoomInventory`** | `private final Map<String, Room> rooms;`<br>`private final Map<RoomType, Deque<Room>> availableRooms;` | `public synchronized void checkIn(Booking b);`<br>`public synchronized void checkOut(Booking b);` **(All inventory operations must be thread-safe**.) |
+| **`BookingService`** | `private final IPricingStrategy pricingStrategy;` | `public Booking createBooking(...);`<br>`public BigDecimal calculateCost(Booking b);` (Uses Strategy for pricing.) |
+| **`Room`** (Abstract) | `protected final String roomNumber;`<br>`protected RoomStatus status;`<br>`protected RoomStyle style;` | `public boolean isAvailable();` |
+| **`RoomFactory`** | | `public static Room createRoom(RoomType type, ...);` **(Factory Pattern:** Used during initial hotel setup to create different room subtypes like `StandardRoom`, `Suite`.) |
+| **`Booking`** | `private final Guest guest;`<br>`private final Room room;`<br>`private final DateRange dates;` | (**Immutable DTO** for a confirmed booking.) |
+| **`IPricingStrategy`** (Interface) | | `BigDecimal calculatePrice(BookingDetails details);` **(Strategy Pattern:** Allows for `SeasonalPricing`, `WeekdayPricing`, `LoyaltyPricing`.) |
+| **`RoomStatus`** (Enum) | `AVAILABLE, OCCUPIED, UNDER_MAINTENANCE` | (Manages the state of a room.) |
+| **`RoomType`** (Enum) | `STANDARD, DELUXE, SUITE` | (Used by the Factory.) |
+
+---
+
+## 20. Chess Game ♟️
+
+This design correctly uses the Strategy Pattern for piece movement. It's refined by adding a **`Game`** class to manage state (like whose turn it is) and a **`Move`** class (Command/DTO) to encapsulate a player's complete action.
+
+| Class/Enum/Interface | Key Attributes (Variables) | Key Methods (Functions) & Concepts |
+|:---|:---|:---|
+| **`Game`** | `private final Board board;`<br>`private final Player[] players;`<br>`private Player currentPlayer;`<br>`private GameStatus status;` | `public boolean makeMove(Player p, Move m);` (Validates the move is for the current player and the move itself is valid.) |
+| **`Board`** | `private final Square[][] squares;` | `public void setupBoard();`<br>`public Square getSquare(int x, int y);`<br>`public void executeMove(Move m);` |
+| **`Piece`** (Abstract) | `protected final Color color;`<br>`private final IMoveStrategy moveStrategy;` | `public List<Move> getValidMoves(Board b, Square start);` (Delegates to its `moveStrategy`.) |
+| **`King`, `Knight`, `Pawn`, etc.** | | (Inherits from `Piece`, initialized with its specific movement strategy.) |
+| **`IMoveStrategy`** (Interface) | | `List<Move> getValidMoves(Board b, Square start);` **(Strategy Pattern:** Encapsulates the unique move algorithm for each piece type.) |
+| **`KnightMoveStrategy`, `PawnMoveStrategy`** | | (Concrete strategies. `PawnMoveStrategy` would handle en passant and promotion logic.) |
+| **`Move`** | `private final Player player;`<br>`private final Square start, end;`<br>`private final Piece pieceMoved;`<br>`private final Piece pieceKilled;` | **(Command/DTO:** Represents a single, validated move in the game.) |
+| **`Color`** (Enum) | `WHITE, BLACK` | (Type-safe player colors.) |
+| **`GameStatus`** (Enum) | `ACTIVE, CHECK, CHECKMATE, STALEMATE, RESIGNATION` | (Represents the current state of the game.) |
+
+---
+
+## 21. Tic-Tac-Toe Game ⭕❌
+
+A simple but effective design. It is improved by abstracting the **`Player`** class, which allows for an easy implementation of both a `HumanPlayer` and an `AIPlayer` (e.g., using minimax) without changing the main game loop.
+
+| Class/Enum/Interface | Key Attributes (Variables) | Key Methods (Functions) & Concepts |
+|:---|:---|:---|
+| **`Game`** | `private final Board board;`<br>`private final Player[] players;`<br>`private int currentPlayerIndex;`<br>`private GameStatus status;` | `public void start();` (Manages the main game loop: get move -> validate -> apply -> check winner -> switch player.) |
+| **`Board`** | `private final int size;`<br>`private final Mark[][] grid;` | `public boolean placeMark(int row, int col, Mark m);`<br>`public boolean isFull();`<br>`public GameStatus checkStatus();` (Encapsulates all board logic.) |
+| **`Player`** (Abstract) | `protected final String name;`<br>`protected final Mark playingMark;` | `public abstract Move makeMove(Board board);` (Contract for any type of player.) |
+| **`HumanPlayer`** | | `@Override public Move makeMove(Board board);` (Reads move from console/UI.) |
+| **`AIPlayer`** | | `@Override public Move makeMove(Board board);` (Uses an algorithm like minimax to determine the best move.) |
+| **`Move`** | `private final int row, col;` | (**Immutable DTO** to represent a player's desired move.) |
+| **`Mark`** (Enum) | `X, O, EMPTY` | (Type-safe representation for what can be on a board square.) |
+| **`GameStatus`** (Enum) | `IN_PROGRESS, DRAW, X_WINS, O_WINS` | (Represents the outcome of the game.) |
+
+---
+
+## 22. Snake and Ladder Game 🐍🪜
+
+This straightforward design is improved by modeling **`Jumper`** as an abstract class, making `Snake` and `Ladder` more explicit types. The main `Game` class uses a **Queue** to naturally handle turn rotation for players.
+
+| Class/Enum/Interface | Key Attributes (Variables) | Key Methods (Functions) & Concepts |
+|:---|:---|:---|
+| **`Game`** | `private final Board board;`<br>`private final Queue<Player> players;`<br>`private final Dice dice;` | `public void startGame();` (Manages the turn-based game loop using a **Queue** for players, which naturally handles turn rotation.) |
+| **`Board`** | `private final int size;`<br>`private final Map<Integer, Jumper> jumpers;` | `public int getNextPosition(int currentPos, int diceVal);` (Calculates move, then checks if the destination square has a `Jumper`.) |
+| **`Jumper`** (Abstract) | `protected final int startPosition;`<br>`protected final int endPosition;` | `public int getEndPosition();` (Base class for snakes and ladders.) |
+| **`Snake`** (extends Jumper) | | (A `Jumper` where `endPosition < startPosition`. A constructor can enforce this rule.) |
+| **`Ladder`** (extends Jumper) | | (A `Jumper` where `endPosition > startPosition`. A constructor can enforce this rule.) |
+| **`Player`** | `private final String name;`<br>`private int currentPosition;` | `public void setPosition(int position);`<br>`public String getName();` |
+| **`Dice`** | `private final int numDice;`<br>`private final Random random;` | `public int roll();` (Encapsulates the logic for rolling one or more dice.) |
+
+---
+
+## 23. File Storage System (Google Drive) 📁
+
+The Composite Pattern is perfect here. The design is enhanced by adding **`AccessControlList` (ACL)** to represent permissions, a critical feature of any real multi-user file system, and using a **`ConcurrentHashMap`** for children in a directory to ensure thread-safety.
+
+| Class/Enum/Interface | Key Attributes (Variables) | Key Methods (Functions) & Concepts |
+|:---|:---|:---|
+| **`FileSystem`** | `private final Directory root;`<br>`private final UserManager userManager;` | `public void createFile(String path, ...);`<br>`public void createDirectory(String path, ...);` **(Facade** over the file system operations.) |
+| **`IStorageItem`** (Interface) | | `String getName();`<br>`int getSize();`<br>`void delete();`<br>`Instant getCreationDate();` **(Composite Pattern: Component** - Defines the common interface.) |
+| **`File`** (Leaf) | `private final String name;`<br>`private final byte[] content;`<br>`private final AccessControlList acl;` | `@Override public int getSize();` **(Leaf** in Composite Pattern.) |
+| **`Directory`** (Composite) | `private final String name;`<br>`private final Map<String, IStorageItem> children;`<br>`private final AccessControlList acl;` | `@Override public int getSize();` (Recursively calculates size of all children.)<br>`public void addChild(IStorageItem item);` **(Uses `ConcurrentHashMap`** for children for thread safety.) |
+| **`AccessControlList`** | `private final User owner;`<br>`private final Map<User, PermissionType> permissions;` | `public boolean hasPermission(User user, PermissionType perm);` (Manages read/write/execute permissions for users/groups.) |
+| **`PermissionType`** (Enum) | `READ, WRITE, EXECUTE` | (Type-safe permissions.) |
+
+---
+
+## 24. Airline Reservation System ✈️
+
+This design correctly separates `Flight` (the route) from `FlightInstance` (the specific occurrence). It's improved by adding an **`Aircraft`** class to model the physical plane and its seat layout, which is a more realistic representation of how airlines manage fleets.
+
+| Class/Enum/Interface | Key Attributes (Variables) | Key Methods (Functions) & Concepts |
+|:---|:---|:---|
+| **`AirlineService`** | `private final FlightService flightService;`<br>`private final BookingService bookingService;` | `public List<FlightInstance> searchFlights(...);`<br>`public Booking makeBooking(...);` **(Facade** for all airline operations.) |
+| **`Flight`** | `private final String flightNumber;`<br>`private final Airport departure, arrival;` | (**Immutable DTO** representing a route, e.g., "UA245 SFO-JFK".) |
+| **`FlightInstance`** | `private final Flight flight;`<br>`private final LocalDate date;`<br>`private final Aircraft aircraft;`<br>`private final Map<String, SeatStatus> seatMap;` | `public List<Seat> getAvailableSeats();`<br>`public synchronized boolean reserveSeat(String seatNumber);` (Represents a specific, bookable flight.) |
+| **`Aircraft`** | `private final String model;`<br>`private final String tailNumber;`<br>`private final List<Seat> seats;` | (**Immutable**. Represents the physical plane with its fixed seat layout.) |
+| **`Seat`** | `private final String seatNumber;`<br>`private final SeatClass seatClass;` | (**Immutable DTO** representing a seat's physical properties.) |
+| **`Booking`** | `private final FlightInstance flightInstance;`<br>`private final List<Passenger> passengers;`<br>`private final List<Seat> seatsBooked;` | `public boolean confirm(IPaymentStrategy p);` |
+| **`IPaymentStrategy`** (Interface) | | `boolean pay(BigDecimal amount);` **(Strategy Pattern)** |
+| **`SeatClass`** (Enum) | `ECONOMY, ECONOMY_PLUS, BUSINESS, FIRST` | (Type-safe seating classes.) |
+| **`SeatStatus`** (Enum) | `AVAILABLE, RESERVED, BOOKED` | (Status of a seat on a specific `FlightInstance`.) |
+
+---
+
+## 25. Shopping Cart System 🛍️
+
+This is a focused design. The crucial point, which is now emphasized, is that **`OrderItem`** must be immutable and store the **`priceAtPurchase`** to protect against price changes after an item is added to the cart but before checkout is complete.
+
+| Class/Enum/Interface | Key Attributes (Variables) | Key Methods (Functions) & Concepts |
+|:---|:---|:---|
+| **`ShoppingCart`** | `private final String userId;`<br>`private final Map<String, CartItem> items;` | `public synchronized void addItem(Product p, int qty);`<br>`public synchronized void updateItemQuantity(...);`<br>`public synchronized void clearCart();` (All methods are synchronized. Often managed per user session.) |
+| **`CartItem`** | `private final Product product;`<br>`private int quantity;` | `public void incrementQuantity(int amount);`<br>`public BigDecimal getSubtotal();` |
+| **`Product`** | `private final String productId;`<br>`private final String name;`<br>`private final BigDecimal currentPrice;` | (**Immutable DTO** for product details.) |
+| **`CheckoutService`** | `private final InventoryService inventory;`<br>`private final PaymentService paymentService;`<br>`private final OrderRepository orderRepo;` | `public Order checkout(ShoppingCart cart, IPaymentStrategy strategy);` **(Facade:** Coordinates inventory, payment, and order creation.) |
+| **`Order`** | `private final String orderId;`<br>`private final List<OrderItem> orderItems;`<br>`private final BigDecimal total;` | (**Immutable** object created from a `ShoppingCart` at checkout.) |
+| **`OrderItem`** | `private final String productId;`<br>`private final int quantity;`<br>`private final BigDecimal priceAtPurchase;` | (**Immutable DTO**. Crucially stores the **price at the time of purchase**, which might differ from the product's current price.) |
+
+---
+
+## 26. Online Stock Brokerage System 📈
+
+Concurrency is paramount. This enhanced design makes the `OrderBook` logic more explicit, using **`ReentrantLock`** for the critical matching operation and **`PriorityQueue`** to correctly model the bid (max-heap) and ask (min-heap) matching process.
+
+| Class/Enum/Interface | Key Attributes (Variables) | Key Methods (Functions) & Concepts |
+|:---|:---|:---|
+| **`BrokerageService`** | `private final AccountService accountService;`<br>`private final Exchange exchange;` | `public boolean placeOrder(String accountId, Order order);` **(Facade** for user interactions.) |
+| **`Account`** | `private BigDecimal cashBalance;`<br>`private final Portfolio portfolio;` | `public synchronized boolean placeBuyOrder(Order order);`<br>`public synchronized boolean placeSellOrder(Order order);` (Checks for funds/shares before sending to exchange.) |
+| **`Order`** | `private final OrderType type;`<br>`private final String stockTicker;`<br>`private final int quantity;`<br>`private final IOrderExecutionStrategy execStrategy;` | `public boolean execute(Exchange exchange);` (Delegates to its strategy.) |
+| **`IOrderExecutionStrategy`** (Interface) | | `void execute(Order o, OrderBook book);` **(Strategy Pattern:** Defines how to fill an order.) |
+| **`MarketOrderStrategy`, `LimitOrderStrategy`** | | (Concrete strategies. `LimitOrderStrategy` has a `limitPrice` attribute.) |
+| **`Exchange`** (Singleton) | `private static final Exchange instance;`<br>`private final Map<String, OrderBook> orderBooks;` | `public static synchronized getInstance();`<br>`public void submitOrder(Order order);` (Places order in the correct `OrderBook`.) |
+| **`OrderBook`** | `private final PriorityQueue<Order> buyOrders; // Max-heap`<br>`private final PriorityQueue<Order> sellOrders; // Min-heap`<br>`private final ReentrantLock lock = new ReentrantLock();` | `public void addOrder(Order order);` (Adds order and triggers `matchOrders()`.)<br>`private void matchOrders();` **(The core, thread-safe matching engine**, protected by the lock.) |
+| **`OrderType`** (Enum) | `BUY, SELL` | (Type-safe order types.) |
+
+---
+
+## 27. Digital Wallet Service (PayPal) 💳
+
+This design is improved by making the **`Wallet`** the central Subject in the Observer pattern and defining a clear **`Transaction`** class that captures the full context of a financial operation as an immutable DTO.
+
+| Class/Enum/Interface | Key Attributes (Variables) | Key Methods (Functions) & Concepts |
+|:---|:---|:---|
+| **`Wallet`** (Subject) | `private BigDecimal balance;`<br>`private final List<IFinancialInstrument> instruments;`<br>`private final transient List<IWalletListener> listeners;` | `public synchronized Transaction sendMoney(...);`<br>`public synchronized Transaction addFunds(...);`<br>`private void notifyListeners(Transaction t);` (All balance-changing methods must be **synchronized**.) |
+| **`IFinancialInstrument`** (Interface) | | `TransactionResult charge(BigDecimal amount);` **(Strategy-like interface** for funding sources like `BankAccount`, `CreditCard`.) |
+| **`BankAccount`, `CreditCard`** | | (Implementations for different ways to add/withdraw money.) |
+| **`Transaction`** | `private final String txnId;`<br>`private final Wallet fromWallet, toWallet;`<br>`private final BigDecimal amount;`<br>`private final TransactionType type;`<br>`private TransactionStatus status;` | (**Immutable DTO** representing a complete financial transaction.) |
+| **`IWalletListener`** (Observer) | | `void onTransactionComplete(Transaction transaction);`<br>`void onTransactionFailed(Transaction transaction);` **(Observer Pattern)** |
+| **`TransactionLogger`, `UiNotifier`** | | (Concrete observers that react to wallet events. `TransactionLogger` would write to a database for audit.) |
+| **`TransactionStatus`** (Enum) | `PENDING, COMPLETED, FAILED, REVERSED` | (Manages the state of a transaction.) |
+| **`TransactionType`** (Enum) | `SEND, RECEIVE, ADD_FUNDS, WITHDRAWAL` | (Categorizes transaction types.) |
+
+---
+
+
+## 28. Restaurant Management System 🍽️
+
+The design is enhanced by creating a Waiter actor who acts as a Facade for the customers at a Table. This simplifies the interaction with the ordering and payment systems and more accurately models the real world.
+
+| Class/Enum/Interface | Key Attributes (Variables) | Key Methods (Functions) & Concepts |
+|---------------------|---------------------------|-----------------------------------|
+| **Restaurant** | `private final Menu menu;`<br>`private final List<Table> tables;`<br>`private final KitchenDisplaySystem kds;` | (Main class to bootstrap the system.) |
+| **Waiter** | `private final List<Table> assignedTables;`<br>`private final OrderService orderService;` | `public void createOrder(Table t);`<br>`public void addToOrder(Order o, MenuItem item, int qty);`<br>`public void sendOrderToKitchen(Order o);`<br>`public Bill checkout(Order o);` (Facade for a table's dining experience.) |
+| **Order** | `private final Table table;`<br>`private final Map<MenuItem, Integer> items;`<br>`private volatile OrderStatus status;` | `public void addItem(...);`<br>`public void setStatus(OrderStatus newStatus);` (Changing status might notify KDS.) |
+| **KitchenDisplaySystem** | `private static final KDS instance;`<br>`private final Queue<Order> pendingOrders;` | `public static synchronized getInstance();` (Singleton/Observer)<br>`public void onNewOrderReceived(Order order);`<br>`public void onOrderReady(Order order);` |
+| **Table** | `private final int tableId;`<br>`private TableStatus status;`<br>`private Order currentOrder;` | (Represents the physical table.) |
+| **Menu** | `private final List<MenuItem> items;` | `public MenuItem findItem(String itemId);` |
+| **TableStatus** (Enum) | AVAILABLE, OCCUPIED, RESERVED, DIRTY | (Manages the state of a dining table.) |
+| **OrderStatus** (Enum) | PENDING, CONFIRMED, PREPARING, READY, SERVED, PAID | (Manages the lifecycle of a customer's order.) |
+
+## 29. Course Registration System 🎓
+
+Concurrency is critical here. The design is enhanced by making the key registration methods on both Student and CourseOffering synchronized to prevent race conditions like over-enrollment or a student registering for conflicting courses.
+
+| Class/Enum/Interface | Key Attributes (Variables) | Key Methods (Functions) & Concepts |
+|---------------------|---------------------------|-----------------------------------|
+| **RegistrationSystem** | `private final CourseCatalog catalog;` | `public boolean processRegistration(Student s, CourseOffering o);` (Facade that coordinates between student and offering, checking prerequisites and capacity.) |
+| **Student** | `private final Map<String, CourseOffering> registeredCourses;`<br>`private final Transcript transcript;` | `public synchronized boolean registerForCourse(CourseOffering o);`<br>`public synchronized boolean dropCourse(CourseOffering o);` (Synchronized to prevent a student from multiple conflicting operations.) |
+| **Course** | `private final String courseCode;`<br>`private final String title;`<br>`private final List<Course> prerequisites;` | (Immutable DTO representing the abstract catalog entry, e.g., "CS101".) |
+| **CourseOffering** | `private final Course course;`<br>`private final int capacity;`<br>`private final List<Student> enrolledStudents;` | `public synchronized boolean addStudent(Student s);` (Checks capacity.)<br>`public synchronized void removeStudent(Student s);` (Represents a specific section of a course.) |
+| **CourseCatalog** | `private static final CourseCatalog instance;`<br>`private final Map<String, Course> allCourses;`<br>`private final List<CourseOffering> currentOfferings;` | `public static synchronized getInstance();` (Singleton)<br>`public List<CourseOffering> findOfferings(String courseCode);` |
+| **Transcript** | `private final Map<Course, Grade> completedCourses;` | `public boolean hasPrerequisites(List<Course> prereqs);` |
+
+## 30. Online Bookstore 📖
+
+This design is refined by introducing a dedicated SearchService using the Strategy Pattern (ISearchStrategy). This decouples the search logic from the main Bookstore facade and allows for easy addition of new search methods (e.g., by genre, publisher).
+
+| Class/Enum/Interface | Key Attributes (Variables) | Key Methods (Functions) & Concepts |
+|---------------------|---------------------------|-----------------------------------|
+| **Bookstore** | `private final Inventory inventory;`<br>`private final SearchService searchService;`<br>`private final CheckoutService checkoutService;` | `public List<Book> search(ISearchStrategy strategy, String query);`<br>`public Order checkout(ShoppingCart cart, ...);` (Facade that simplifies the primary user workflows.) |
+| **Inventory** | `private final Map<String, AtomicInteger> stockByIsbn;`<br>`private final Map<String, Book> booksByIsbn;` | `public synchronized void addBook(Book b, int qty);`<br>`public int getStockLevel(String isbn);` (Uses AtomicInteger for thread-safe stock management.) |
+| **SearchService** | `private final Inventory inventory;` | `public List<Book> search(ISearchStrategy strategy, String query);` |
+| **ISearchStrategy** (Interface) | | `List<Book> search(String query, Inventory inventory);` (Strategy Pattern: For searching by Title, Author, ISBN, Genre, etc.) |
+| **Book** | `private final String ISBN;`<br>`private final String title;`<br>`private final List<Author> authors;`<br>`private final BigDecimal price;` | (Immutable DTO for book details.) |
+| **ShoppingCart** | `private final Map<String, Integer> itemsByIsbn;` | `public void addItem(Book book, int quantity);` |
+| **Order** | `private final List<OrderItem> items;`<br>`private final BigDecimal total;` | (Immutable record of a completed purchase.) |
+| **OrderItem** | `private final Book book;`<br>`private final BigDecimal priceAtPurchase;` | (Immutable. It's crucial this stores the price at time of purchase.) |
+
+## 31. Social Media Platform (Generic) 🌐
+
+The design is enhanced with a NewsFeedService that uses the Strategy Pattern for feed generation. This is a core feature and allows for pluggable ranking algorithms (e.g., chronological vs. relevance-based).
+
+| Class/Enum/Interface | Key Attributes (Variables) | Key Methods (Functions) & Concepts |
+|---------------------|---------------------------|-----------------------------------|
+| **User** | `private final Set<User> followers;`<br>`private final Set<User> following;` | `public void follow(User user);`<br>`public Post createPost(PostType type, ...);` (Uses the PostFactory.) |
+| **Post** (Abstract) | `protected final User author;`<br>`protected int likeCount;`<br>`protected final List<Comment> comments;` | `public abstract void display();`<br>`public synchronized void addLike();` |
+| **TextPost, ImagePost, VideoPost** | | `@Override public void display();` (Concrete post types with different content.) |
+| **PostFactory** | | `public static Post createPost(User u, PostType type, ...);` (Factory Pattern: Decouples the client from the creation logic of different post types.) |
+| **NewsFeedService** | `private final IFeedGenerationStrategy feedStrategy;` | `public List<Post> getFeed(User user);` (Delegates generation to the chosen strategy.) |
+| **IFeedGenerationStrategy** (Interface) | | `List<Post> generateFeed(User user, Set<User> followedUsers);` (Strategy Pattern: Allows for different feed ranking algorithms, e.g., ChronologicalFeed, RelevanceFeed.) |
+| **Comment** | `private final User author;`<br>`private final String text;` | (Immutable DTO for a comment.) |
+| **PostType** (Enum) | TEXT, IMAGE, VIDEO | (Used by the Factory to create the correct post type.) |
+
+## 32. Facebook (Advanced Social Media) 👍
+
+This builds on the generic platform by adding more complex entities. The FriendRequest is modeled as a stateful object, which is a better representation of the real-world process than a simple method call.
+
+| Class/Enum/Interface | Key Attributes (Variables) | Key Methods (Functions) & Concepts |
+|---------------------|---------------------------|-----------------------------------|
+| **Member** (extends User) | `private final Map<String, Member> friends;` | `public void sendFriendRequest(Member recipient);`<br>`public void processFriendRequest(FriendRequest req, boolean accepted);` |
+| **FriendRequest** | `private final Member fromUser, toUser;`<br>`private RequestStatus status;`<br>`private final Instant timestamp;` | `public void accept();`<br>`public void decline();` (A stateful object representing a pending friend request.) |
+| **Post** | `private final Map<ReactionType, List<Member>> reactions;` | `public synchronized void addReaction(Member m, ReactionType type);` (More advanced than a simple like count.) |
+| **Group** | `private final String name;`<br>`private final Map<String, Member> members;`<br>`private final List<Post> posts;` | `public void addMember(Member member);`<br>`public void createPost(...);` (A container for posts and members.) |
+| **Page** | `private final String name;`<br>`private final Set<Member> followers;` | (Represents an entity like a business that members can follow.) |
+| **Event** | `private final String title;`<br>`private final Map<Member, EventRSVP> attendees;` | `public void rsvp(Member member, EventRSVP status);` (Manages events and attendance.) |
+| **ReactionType** (Enum) | LIKE, LOVE, HAHA, WOW, SAD, ANGRY | (Richer set of reactions.) |
+| **RequestStatus** (Enum) | PENDING, ACCEPTED, DECLINED, IGNORED | (Manages friend request lifecycle.) |
+| **EventRSVP** (Enum) | ATTENDING, MAYBE, NOT_ATTENDING | (Manages event attendance status.) |
+
+## 33. Cricinfo (Live Sports Commentary) 🏏
+
+This is a classic real-time system driven by the Observer pattern. The design is refined by making Ball an immutable DTO that contains all information about a single delivery, ensuring that once an event has happened, its record cannot be altered.
+
+| Class/Enum/Interface | Key Attributes (Variables) | Key Methods (Functions) & Concepts |
+|---------------------|---------------------------|-----------------------------------|
+| **Match** (Subject) | `private final List<Innings> innings;`<br>`private MatchStatus status;`<br>`private final transient List<ILiveScoreViewer> viewers;` | `public void addBall(Innings i, Ball b);` (Notifies all viewers of the new ball.)<br>`public void addViewer(ILiveScoreViewer v);` (Subject's registration method.) |
+| **ILiveScoreViewer** (Observer) | | `void updateScore(Match match, Ball lastBall);` (Observer Pattern: Defines how viewers receive updates.) |
+| **MobileAppViewer, WebsiteViewer** | | `@Override public void updateScore(...);` (Concrete observers can render the update differently.) |
+| **Innings** | `private final Team battingTeam, bowlingTeam;`<br>`private int totalRuns;`<br>`private int wicketsFallen;`<br>`private final List<Over> overs;` | (Represents one team's turn to bat.) |
+| **Over** | `private final Player bowler;`<br>`private final List<Ball> balls;` | (Composed of up to 6 valid Ball events.) |
+| **Ball** | `private final int runsScored;`<br>`private final Wicket wicket; // Can be null`<br>`private final BallType type;`<br>`private final String commentary;` | (Immutable DTO. Represents the smallest unit of action. Once a ball is bowled, its outcome is final.) |
+| **Wicket** | `private final Player batsmanOut;`<br>`private final WicketType type;` | (Immutable DTO representing the dismissal of a batsman.) |
+| **WicketType** (Enum) | BOWLED, CAUGHT, LBW, RUN_OUT, STUMPED | (Type-safe representation of dismissal types.) |
+| **BallType** (Enum) | NORMAL, WIDE, NO_BALL | (Type-safe ball types.) |
+
+## 34. API Rate Limiter ⏱️
+
+This design uses the Strategy Pattern for different rate-limiting algorithms. The TokenBucketStrategy is enhanced to be explicitly thread-safe using synchronized on the core logic, as multiple requests for the same user can arrive concurrently. A Factory creates limiters based on user subscription tiers.
+
+| Class/Enum/Interface | Key Attributes (Variables) | Key Methods (Functions) & Concepts |
+|---------------------|---------------------------|-----------------------------------|
+| **RateLimiterService** | `private final IRateLimitingStrategy defaultStrategy;`<br>`private final Map<String, IRateLimitingStrategy> userStrategies;` | `public boolean isRequestAllowed(String userId);` (Facade that checks if a request from a user should be accepted or rejected.) |
+| **IRateLimitingStrategy** (Interface) | | `boolean isAllowed();` (Strategy Pattern: Allows for different algorithms like TokenBucket, LeakyBucket, FixedWindowCounter.) |
+| **TokenBucketStrategy** | `private final int bucketCapacity;`<br>`private final int refillRate; // tokens per second`<br>`private final AtomicInteger currentTokens;`<br>`private volatile long lastRefillTimestamp;` | `public synchronized boolean isAllowed();` (Refills tokens based on time elapsed, then attempts to consume a token. This must be synchronized.) |
+| **TokenBucketFactory** | | `public IRateLimitingStrategy createForUser(User user);` (Factory Pattern: Creates a specific rate limiter instance for a user based on their subscription tier.) |
+| **User** | `private final String userId;`<br>`private final SubscriptionTier tier;` | (User object containing information that might affect their rate limit.) |
+| **SubscriptionTier** (Enum) | FREE(10), BASIC(100), PREMIUM(1000);<br>`private final int requestsPerMinute;` | (Defines different service levels, used by the factory to configure the rate limiter.) |
