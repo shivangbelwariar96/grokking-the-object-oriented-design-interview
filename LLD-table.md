@@ -1,8 +1,5 @@
-# Enhanced System Design Tables - 34 Systems
+# LLD System Design Tables - 34 Systems
 
-Of course. While the initial designs are a strong foundation, they can be enhanced to be more robust, scalable, and reflective of real-world complexities, which is what interviewers look for.
-
-The following tables refine your designs by introducing more advanced concepts, improving concurrency handling, applying design patterns more precisely, and ensuring better separation of concerns (SRP). These improvements are critical for demonstrating senior-level thinking in a low-level design round.
 
 ---
 
